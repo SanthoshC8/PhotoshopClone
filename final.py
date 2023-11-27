@@ -17,6 +17,20 @@ import yaml
 
 matplotlib.use('TkAgg')
 
+#THINGS NEEDED TO BE DONE
+# - CHANGE FIRST RESIZE SO IT FITS PROPERLY
+# - CHNAGE DESIGN
+# - SORT IF STATEMNTS PROPERLY
+# - MAKE FUNCTIONS IN DIFFERENT FILES
+# - blur incorrect
+# - fix second image and add image to right
+# - comment functions and if statements
+# - make the undo/redo into a function
+# - add crop
+
+
+
+
 def np_im_to_data(im):
     array = np.array(im, dtype=np.uint8)
     im = Image.fromarray(array)
@@ -25,17 +39,7 @@ def np_im_to_data(im):
         data = output.getvalue()
     return data
 
-def construct_image_histogram(np_image):
-    L = 256
-    bins = np.arange(L+1)
-    hist, _ = np.histogram(np_image, bins)
-    return hist
 
-def draw_hist(canvas, figure):
-   tkcanvas = FigureCanvasTkAgg(figure, canvas)
-   tkcanvas.draw()
-   tkcanvas.get_tk_widget().pack(side='top', fill='both', expand=1)
-   return tkcanvas
 
 def resize_image(image):
     h,w,c = image.shape
@@ -98,6 +102,10 @@ def display_image(np_image,filename):
         [sg.Button('undo',key="Undo"),
         sg.Button('redo',key="Redo"),
         sg.Button('crop',key="Crop"),
+        sg.Slider(range=(0,15),default_value=0,expand_x=True, enable_events=True,
+        orientation='horizontal', key='-SL-'),
+        sg.Button('Averaging'),
+        sg.Button('Addimage'),
         sg.Button('Resize'),
         sg.Button('Save'),
         sg.Button('Exit')],
@@ -208,6 +216,8 @@ def display_image(np_image,filename):
                 print("cur",currentimage)
                 np_image=imagelist[currentimage]
                 image_data = np_im_to_data(np_image)
+                graph.erase()
+                height,w,c = np_image.shape
                 graph.draw_image(data=image_data, location=(0, height))
 
 
@@ -217,6 +227,8 @@ def display_image(np_image,filename):
                 print("cur",currentimage)
                 np_image=imagelist[currentimage]
                 image_data = np_im_to_data(np_image)
+                graph.erase()
+                height,w,c = np_image.shape
                 graph.draw_image(data=image_data, location=(0, height))
 
         if event =="Crop":
@@ -237,6 +249,60 @@ def display_image(np_image,filename):
             graph.draw_image(data=image_data, location=(0, height))
 
 
+        if event == 'Averaging':
+
+            np_image =apply_filter_to_image(np_image,[int(values['-SL-']),'a'])
+
+            image_data = np_im_to_data(np_image)
+
+
+            graph.draw_image(data=image_data, location=(0, height))
+
+
+
+
+        if event == 'Gaussian':
+            print("hi")
+
+            # tt = gaussian2d(math.sqrt(int(values['-SL-'])*(1/3)), 2*int(values['-SL-'])+1)
+            #
+            # I_ave =apply_filter_to_image(np_image,[int(values['-SL-']),tt])
+            # end_time = time.time()
+            # print(round(end_time-start_time,2))
+
+            # image_data6 = np_im_to_data(I_ave)
+
+            # np_image5 = cv2.cvtColor(np_image, cv2.COLOR_RGB2GRAY)
+            # image_data5 = np_im_to_data(np_image5)
+            #
+            # window['-IMAGE-'].draw_image(data=image_data5, location=(0, height))
+            #
+            # window['-IMAGE2-'].draw_image(data=image_data6, location=(0, height))
+
+
+
+        if event =="Addimage":
+            temp = np_image.copy()
+            np_image = doubletheimage(np_image,temp)
+
+
+            if len(imagelist)-1>currentimage:
+                currentimage+=1
+                imagelist[currentimage] = np_image
+                del imagelist[currentimage+1:]
+            else:
+                imagelist.append(np_image)
+                currentimage+=1
+
+            image_data = np_im_to_data(np_image)
+            graph.erase()
+            height,w,c = np_image.shape
+            graph.draw_image(data=image_data, location=(0, height))
+
+
+
+
+
         if event =="Resize":
             np_image = open_window_resize(np_image)
 
@@ -251,6 +317,77 @@ def display_image(np_image,filename):
 
 
     window.close()
+
+def doubletheimage(image,image2):
+    res = image.copy()
+
+    res = np.r_[res,image2    ]
+
+
+    return res
+
+
+
+def apply_filter_to_patch(patch,filter):
+
+    #print(patch)
+
+
+    if filter[1] =="a":
+
+        hxw = 2*filter[0] + 1
+
+        h = (np.ones(hxw*hxw*3).reshape(hxw,hxw,3) )/ (hxw*hxw)
+
+        #print(h)
+        #print("_________________________")
+
+        return round(np.dot(np.reshape(patch, (hxw*hxw*3)), np.reshape(h, (hxw*hxw*3))))
+
+    else:
+        hxw = 2*filter[0] + 1
+
+        #h = gaussian2d(7, hxw)
+
+        h = filter[1]
+        #print(h)
+        #print(h)
+        #print("_________________________")
+        #print(round((np.dot(np.reshape(patch, (hxw*hxw)), np.reshape(h, (hxw*hxw))))/np.sum(h)))
+        #return round(np.dot(np.reshape(patch, (hxw*hxw)), np.reshape(h, (hxw*hxw))))
+        return round((np.dot(np.reshape(patch, (hxw*hxw)), np.reshape(h, (hxw*hxw))))/np.sum(h))
+
+
+
+def apply_filter_to_image(image, filter):
+    #I_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    I_gray = image.copy()
+
+    imagetest = I_gray.copy()
+    h,w,c = I_gray.shape
+
+    halfw = filter[0]
+    fullw = 2*halfw +1
+
+
+    for y in range(h-fullw+1):
+        midy = y + halfw
+        for i in range(w-fullw+1):
+            midi = i + halfw
+
+            temppatch = I_gray[y:y+fullw,i:i+fullw]
+            newnum = apply_filter_to_patch(temppatch,filter)
+
+            imagetest[midy,midi] = newnum
+            #print(temppatch)
+
+    #boundary
+    imagetest[0:halfw,:-1] = 100
+    imagetest[:-1,-halfw:] = 100
+    imagetest[-halfw:,:0:-1] = 100
+    imagetest[::-1,0:halfw] = 100
+
+    return imagetest
 
 
 
