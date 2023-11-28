@@ -22,11 +22,12 @@ matplotlib.use('TkAgg')
 # - CHNAGE DESIGN
 # - SORT IF STATEMNTS PROPERLY
 # - MAKE FUNCTIONS IN DIFFERENT FILES
-# - blur incorrect
+# - blur incorrect / add redo and fix the grey border
 # - fix second image and add image to right
 # - comment functions and if statements
 # - make the undo/redo into a function
 # - add crop
+# - fix resize 
 
 
 
@@ -78,9 +79,9 @@ def display_image(np_image,filename):
 
     # Define the layout
     layout = [[sg.Graph(
-        canvas_size=(width+200, height+300),
+        canvas_size=(700, 700),
         graph_bottom_left=(0, 0),
-        graph_top_right=(width+200, height+300),
+        graph_top_right=(700, 700),
         key='-IMAGE-',
         background_color='white',
         change_submits=True,
@@ -105,6 +106,7 @@ def display_image(np_image,filename):
         sg.Slider(range=(0,15),default_value=0,expand_x=True, enable_events=True,
         orientation='horizontal', key='-SL-'),
         sg.Button('Averaging'),
+        sg.Button('Gaussian'),
         sg.Button('Addimage'),
         sg.Button('Resize'),
         sg.Button('Save'),
@@ -253,6 +255,16 @@ def display_image(np_image,filename):
 
             np_image =apply_filter_to_image(np_image,[int(values['-SL-']),'a'])
 
+            if len(imagelist)-1>currentimage:
+                currentimage+=1
+                imagelist[currentimage] = np_image
+                del imagelist[currentimage+1:]
+
+
+            else:
+                imagelist.append(np_image)
+                currentimage+=1
+
             image_data = np_im_to_data(np_image)
 
 
@@ -260,24 +272,26 @@ def display_image(np_image,filename):
 
 
 
-
         if event == 'Gaussian':
-            print("hi")
+            tt = gaussian2d(math.sqrt(int(values['-SL-'])*(1/3)), 2*int(values['-SL-'])+1)
 
-            # tt = gaussian2d(math.sqrt(int(values['-SL-'])*(1/3)), 2*int(values['-SL-'])+1)
-            #
-            # I_ave =apply_filter_to_image(np_image,[int(values['-SL-']),tt])
-            # end_time = time.time()
-            # print(round(end_time-start_time,2))
+            np_image =apply_filter_to_image(np_image,[int(values['-SL-']),tt])
 
-            # image_data6 = np_im_to_data(I_ave)
+            if len(imagelist)-1>currentimage:
+                currentimage+=1
+                imagelist[currentimage] = np_image
+                del imagelist[currentimage+1:]
 
-            # np_image5 = cv2.cvtColor(np_image, cv2.COLOR_RGB2GRAY)
-            # image_data5 = np_im_to_data(np_image5)
-            #
-            # window['-IMAGE-'].draw_image(data=image_data5, location=(0, height))
-            #
-            # window['-IMAGE2-'].draw_image(data=image_data6, location=(0, height))
+
+            else:
+                imagelist.append(np_image)
+                currentimage+=1
+
+            image_data = np_im_to_data(np_image)
+
+
+            graph.draw_image(data=image_data, location=(0, height))
+
 
 
 
@@ -318,31 +332,97 @@ def display_image(np_image,filename):
 
     window.close()
 
+
 def doubletheimage(image,image2):
-    res = image.copy()
+    layout = [[sg.Text("file:"),sg.Input('',enable_events=True, key='-FILEPATH-'),sg.FileBrowse(key='-IN-',file_types=[("JPEG Files","*.jpeg")])],
+    [sg.Button('Submit'),sg.Button('Cancel')]
+    ]
 
-    res = np.r_[res,image2    ]
+    window = sg.Window("Add Image", layout, modal=True)
+    while True:
+        event, values = window.read()
+
+        if event == 'Cancel' or event == sg.WIN_CLOSED:
+            window.close()
+            return image
+            break
+
+        if event == 'Submit':
+
+            newimage = cv2.imread(values["-FILEPATH-"])
+            newimage = cv2.cvtColor(newimage, cv2.COLOR_BGR2RGB)
+            res = image.copy()
+            res = np.r_[res,newimage    ]
+            window.close()
+            return res
+            break
+
+    window.close()
 
 
-    return res
 
+    # res = image.copy()
+    #
+    # res = np.r_[res,image2    ]
+    #
+    #
+    # return res
+
+
+
+
+
+
+
+
+
+
+
+
+
+def gaussian2_xy(mean, cov, xy):
+    invcov = np.linalg.inv(cov)
+    results = np.ones([xy.shape[0], xy.shape[1]])
+    for x in range(0, xy.shape[0]):
+        for y in range(0, xy.shape[1]):
+            v = xy[x,y,:].reshape(2,1) - mean
+            results[x,y] = np.dot(np.dot(np.transpose(v), invcov), v)
+    results = np.exp( - results / 2 )
+    return results
+
+
+def gaussian2_n(mean, cov, n):
+    s = n//2
+    x = np.linspace(-s,s,n)
+    y = np.linspace(-s,s,n)
+    xc, yc = np.meshgrid(x, y)
+    xy = np.zeros([n, n, 2])
+    xy[:,:,0] = xc
+    xy[:,:,1] = yc
+
+    return gaussian2_xy(mean, cov, xy), xc, yc
+
+def gaussian2d(var, n):
+    mean =  np.array([0, 0])
+    mean = mean.reshape(2,1)
+    cov = np.array([[var,0],[0,var]])
+    k, xc, yc = gaussian2_n(mean, cov, n)
+    return k
 
 
 def apply_filter_to_patch(patch,filter):
-
-    #print(patch)
 
 
     if filter[1] =="a":
 
         hxw = 2*filter[0] + 1
 
-        h = (np.ones(hxw*hxw*3).reshape(hxw,hxw,3) )/ (hxw*hxw)
+        h = (np.ones(hxw*hxw).reshape(hxw,hxw) )/ (hxw*hxw)
 
         #print(h)
         #print("_________________________")
 
-        return round(np.dot(np.reshape(patch, (hxw*hxw*3)), np.reshape(h, (hxw*hxw*3))))
+        return round(np.dot(np.reshape(patch, (hxw*hxw)), np.reshape(h, (hxw*hxw))))
 
     else:
         hxw = 2*filter[0] + 1
@@ -361,10 +441,13 @@ def apply_filter_to_patch(patch,filter):
 
 def apply_filter_to_image(image, filter):
     #I_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    I_gray = image.copy()
 
-    imagetest = I_gray.copy()
-    h,w,c = I_gray.shape
+    I_red = image[:,:,0].copy()
+    I_green = image[:,:,1].copy()
+    I_blue = image[:,:,2].copy()
+
+    imagetest = image.copy()
+    h,w ,c= image.shape
 
     halfw = filter[0]
     fullw = 2*halfw +1
@@ -375,10 +458,16 @@ def apply_filter_to_image(image, filter):
         for i in range(w-fullw+1):
             midi = i + halfw
 
-            temppatch = I_gray[y:y+fullw,i:i+fullw]
+            temppatch = I_red[y:y+fullw,i:i+fullw]
             newnum = apply_filter_to_patch(temppatch,filter)
 
-            imagetest[midy,midi] = newnum
+            temppatch2 = I_green[y:y+fullw,i:i+fullw]
+            newnum2 = apply_filter_to_patch(temppatch2,filter)
+
+            temppatch3 = I_blue[y:y+fullw,i:i+fullw]
+            newnum3 = apply_filter_to_patch(temppatch3,filter)
+
+            imagetest[midy,midi] = [newnum,newnum2,newnum3]
             #print(temppatch)
 
     #boundary
@@ -388,7 +477,6 @@ def apply_filter_to_image(image, filter):
     imagetest[::-1,0:halfw] = 100
 
     return imagetest
-
 
 
 def open_window_resize(np_image):
