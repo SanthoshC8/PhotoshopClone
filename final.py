@@ -15,19 +15,18 @@ import math
 import time
 import yaml
 
+from resize import *
+
 matplotlib.use('TkAgg')
 
 #THINGS NEEDED TO BE DONE
-# - CHANGE FIRST RESIZE SO IT FITS PROPERLY
 # - CHNAGE DESIGN
 # - SORT IF STATEMNTS PROPERLY
 # - MAKE FUNCTIONS IN DIFFERENT FILES
-# - blur incorrect / add redo and fix the grey border
-# - fix second image and add image to right
 # - comment functions and if statements
 # - make the undo/redo into a function
-# - add crop
-# - fix resize 
+# - add cut
+# - add brush impossible
 
 
 
@@ -40,24 +39,6 @@ def np_im_to_data(im):
         data = output.getvalue()
     return data
 
-
-
-def resize_image(image):
-    h,w,c = image.shape
-
-    temp = 480/  w
-
-    neww = 480
-
-    newh = round(h * temp)
-
-    print(newh,neww)
-
-    print(f'Resizing the image to {newh}x{neww} ...', end='')
-    image = cv2.resize(image, (neww,newh), interpolation=cv2.INTER_LINEAR)
-
-    return image
-    print(f'{image.shape}')
 
 def display_image(np_image,filename):
 
@@ -75,6 +56,13 @@ def display_image(np_image,filename):
 
     height = h
     width = w
+
+
+
+    rb=[]
+    rb.append(sg.Radio("Arts", "faculty", key='arts', enable_events=True,default=True))
+    rb.append(sg.Radio("Commerce", "faculty", key='comm', enable_events=True))
+    rb.append(sg.Radio("Science", "faculty", key='sci',enable_events=True))
 
 
     # Define the layout
@@ -108,6 +96,7 @@ def display_image(np_image,filename):
         sg.Button('Averaging'),
         sg.Button('Gaussian'),
         sg.Button('Addimage'),
+        sg.Combo(['up','down','left','right','custom'] ,size=(20, 4),readonly=True, enable_events=True, key='-RESIZEOP-'),
         sg.Button('Resize'),
         sg.Button('Save'),
         sg.Button('Exit')],
@@ -253,7 +242,7 @@ def display_image(np_image,filename):
 
         if event == 'Averaging':
 
-            np_image =apply_filter_to_image(np_image,[int(values['-SL-']),'a'])
+            np_image =apply_filter_to_image(np_image,[int(values['-SL-']),'a'],start_data,end_data)
 
             if len(imagelist)-1>currentimage:
                 currentimage+=1
@@ -275,7 +264,7 @@ def display_image(np_image,filename):
         if event == 'Gaussian':
             tt = gaussian2d(math.sqrt(int(values['-SL-'])*(1/3)), 2*int(values['-SL-'])+1)
 
-            np_image =apply_filter_to_image(np_image,[int(values['-SL-']),tt])
+            np_image =apply_filter_to_image(np_image,[int(values['-SL-']),tt],start_data,end_data)
 
             if len(imagelist)-1>currentimage:
                 currentimage+=1
@@ -293,11 +282,8 @@ def display_image(np_image,filename):
             graph.draw_image(data=image_data, location=(0, height))
 
 
-
-
         if event =="Addimage":
-            temp = np_image.copy()
-            np_image = doubletheimage(np_image,temp)
+            np_image = addimage(np_image,values['-RESIZEOP-'],start_data,end_data)
 
 
             if len(imagelist)-1>currentimage:
@@ -319,8 +305,14 @@ def display_image(np_image,filename):
 
         if event =="Resize":
             np_image = open_window_resize(np_image)
-
             image_data = np_im_to_data(np_image)
+            if len(imagelist)-1>currentimage:
+                currentimage+=1
+                imagelist[currentimage] = np_image
+                del imagelist[currentimage+1:]
+            else:
+                imagelist.append(np_image)
+                currentimage+=1
             graph.erase()
             height,w,c = np_image.shape
             graph.draw_image(data=image_data, location=(0, height))
@@ -333,7 +325,13 @@ def display_image(np_image,filename):
     window.close()
 
 
-def doubletheimage(image,image2):
+
+
+
+
+
+def addimage(image,order,start,end):
+    image_h,image_w,c = image.shape
     layout = [[sg.Text("file:"),sg.Input('',enable_events=True, key='-FILEPATH-'),sg.FileBrowse(key='-IN-',file_types=[("JPEG Files","*.jpeg")])],
     [sg.Button('Submit'),sg.Button('Cancel')]
     ]
@@ -351,8 +349,80 @@ def doubletheimage(image,image2):
 
             newimage = cv2.imread(values["-FILEPATH-"])
             newimage = cv2.cvtColor(newimage, cv2.COLOR_BGR2RGB)
+
+            #newimage_height,newimage_width,newimage_c = newimage.shape
+
+            #newimage_height , newimage_width = constrained(newimage,image_h,image_w)
+            # np_image = resizebil(newimage,newimage_height , newimage_width)
+
+            #newimage = resize_image(newimage,316 ,480)
+
             res = image.copy()
-            res = np.r_[res,newimage    ]
+
+            if order=='up':
+                print('-------------------')
+                print(image_h,image_w)
+                newimage_height , newimage_width = constrained(newimage,None,image_w)
+                print(newimage_height,newimage_width)
+
+                newimage = resizebil(newimage,newimage_height , newimage_width)
+                res = np.vstack([newimage,res    ] )
+            elif order=='down':
+                newimage_height , newimage_width = constrained(newimage,None,image_w)
+                newimage = resizebil(newimage,newimage_height , newimage_width)
+                res = np.vstack([res,newimage    ] )
+
+            elif order=='left':
+                newimage_height , newimage_width = constrained(newimage,image_h,None)
+                newimage = resizebil(newimage,newimage_height , newimage_width)
+                res = np.hstack([newimage,res    ] )
+
+            elif order=='right':
+                newimage_height , newimage_width = constrained(newimage,image_h,None)
+                newimage = resizebil(newimage,newimage_height , newimage_width)
+                res = np.hstack([res,newimage    ] )
+
+            else:
+                print('cusom')
+
+
+
+                height ,width ,c = image.shape
+
+                startheight = max(start[1],end[1])
+
+                startheight = height - startheight
+
+                endheight = min(start[1],end[1])
+
+                endheight = height - endheight
+
+                startwidth = min(start[0],end[0])
+
+                endwidth = max(start[0],end[0])
+
+
+                newimage = resizebil(newimage,endheight-startheight , endwidth-startwidth)
+
+
+
+                newimage_y=0
+                for y in range(startheight,endheight):
+                    newimage_x=0
+                    for i in range(startwidth,endwidth):
+                        res[y][i] = newimage[newimage_y][newimage_x]
+                        newimage_x+=1
+                    newimage_y+=1
+
+
+
+
+
+            #res = np.r_[res,newimage    ]  #adds to bottom must be 480
+
+            #res = np.vstack([res,newimage    ] )
+
+            #res = np.hstack([res,newimage    ] ) #adds to right must be 316 (316,480)
             window.close()
             return res
             break
@@ -367,12 +437,6 @@ def doubletheimage(image,image2):
     #
     #
     # return res
-
-
-
-
-
-
 
 
 
@@ -439,8 +503,23 @@ def apply_filter_to_patch(patch,filter):
 
 
 
-def apply_filter_to_image(image, filter):
+def apply_filter_to_image(image, filter,start,end):
     #I_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+
+    height ,width ,c = image.shape
+
+    startheight = max(start[1],end[1])
+
+    startheight = height - startheight
+
+    endheight = min(start[1],end[1])
+
+    endheight = height - endheight
+
+    startwidth = min(start[0],end[0])
+
+    endwidth = max(start[0],end[0])
 
     I_red = image[:,:,0].copy()
     I_green = image[:,:,1].copy()
@@ -453,9 +532,9 @@ def apply_filter_to_image(image, filter):
     fullw = 2*halfw +1
 
 
-    for y in range(h-fullw+1):
+    for y in range(startheight,endheight):
         midy = y + halfw
-        for i in range(w-fullw+1):
+        for i in range(startwidth,endwidth):
             midi = i + halfw
 
             temppatch = I_red[y:y+fullw,i:i+fullw]
@@ -471,157 +550,14 @@ def apply_filter_to_image(image, filter):
             #print(temppatch)
 
     #boundary
-    imagetest[0:halfw,:-1] = 100
-    imagetest[:-1,-halfw:] = 100
-    imagetest[-halfw:,:0:-1] = 100
-    imagetest[::-1,0:halfw] = 100
+    # imagetest[0:halfw,:-1] = 100
+    # imagetest[:-1,-halfw:] = 100
+    # imagetest[-halfw:,:0:-1] = 100
+    # imagetest[::-1,0:halfw] = 100
 
     return imagetest
 
 
-def open_window_resize(np_image):
-
-    layout = [[sg.Text("height"),sg.Input('',enable_events=True, key='-HEIGHTINPUT-'),sg.Text("px")],
-    [sg.Text("width"),sg.Input('',enable_events=True, key='-WIDTHINPUT-'),sg.Text("px")],
-    [sg.Text("constrained"),sg.Checkbox('', key='s1')],
-    [sg.Button('NN'),sg.Button('Bilinear'),sg.Button('Cancel')]
-    ]
-
-    window = sg.Window("Save", layout, modal=True)
-
-    while True:
-
-        event, values = window.read()
-
-        if event == 'Cancel' or event == sg.WIN_CLOSED:
-            window.close()
-            return np_image
-            break
-
-        if event == 'NN':
-            if values['s1']==True:
-                h , w = constrained(np_image,values['-HEIGHTINPUT-'],values['-WIDTHINPUT-'])
-                np_image = resizeNN(np_image,h,w)
-            else:
-                h = values['-HEIGHTINPUT-']
-                w = values['-WIDTHINPUT-']
-                np_image = resizeNN(np_image,h,w)
-
-            window.close()
-            return np_image
-            break
-        if event == 'Bilinear':
-            if values['s1']==True:
-                h , w = constrained(np_image,values['-HEIGHTINPUT-'],values['-WIDTHINPUT-'])
-                np_image = resizebil(np_image,h,w)
-            else:
-                h = values['-HEIGHTINPUT-']
-                w = values['-WIDTHINPUT-']
-                np_image = resizebil(np_image,values['-HEIGHTINPUT-'],values['-WIDTHINPUT-'])
-
-            window.close()
-            return np_image
-            break
-    window.close()
-
-
-
-
-def constrained(image,vh,vw):
-    h,w,c = image.shape
-
-
-
-    if not vh:
-        vw = int(vw)
-        temp = vw/  w
-        neww = vw
-        newh = round(h * temp)
-
-    else:
-        vh = int(vh)
-        temp = vh/  h
-
-        newh = vh
-
-        neww = round(w * temp)
-
-
-    return newh,neww
-
-
-
-
-
-def resizeNN(image,h,w):
-    h = int(h)
-    w = int(w)
-    new_image = np.zeros((int(h), int(w), 3), np.uint8)
-
-    if len(image.shape) ==2:
-        oldh,oldw = image.shape
-    else:
-        oldh,oldw,oldc = image.shape
-
-
-    frac_w = oldw / w
-    frac_h = oldh / h
-
-    curr_h = 0
-    for i in range(h):
-        curr_w = 0
-        for x in range(w):
-            new_image[i][x] = image[round(curr_h)][round(curr_w)]
-            curr_w +=frac_w
-        curr_h +=frac_h
-    return new_image
-
-
-
-def resizebil(image,h,w):
-    h = int(h)
-    w = int(w)
-
-    if len(image.shape) ==2:
-        oldh,oldw = image.shape
-    else:
-        oldh,oldw,oldc = image.shape
-
-    new_image = np.zeros((h, w, 3), np.uint8)
-    frac_w = oldw / w
-    frac_h = oldh / h
-    for i in range(h):
-    	for x in range(w):
-    		curr_x = i * frac_h
-    		y = x * frac_w
-
-    		x_floor = math.floor(curr_x)
-    		x_ceil = min( oldh - 1, math.ceil(curr_x))
-    		y_floor = math.floor(y)
-    		y_ceil = min(oldw - 1, math.ceil(y))
-
-    		if (x_ceil == x_floor) and (y_ceil == y_floor):
-    			q = image[int(curr_x), int(y), :]
-    		elif (x_ceil == x_floor):
-    			q1 = image[int(curr_x), int(y_floor), :]
-    			q2 = image[int(curr_x), int(y_ceil), :]
-    			q = q1 * (y_ceil - y) + q2 * (y - y_floor)
-    		elif (y_ceil == y_floor):
-    			q1 = image[int(x_floor), int(y), :]
-    			q2 = image[int(x_ceil), int(y), :]
-    			q = (q1 * (x_ceil - curr_x)) + (q2	 * (curr_x - x_floor))
-    		else:
-    			v1 = image[x_floor, y_floor, :]
-    			v2 = image[x_ceil, y_floor, :]
-    			v3 = image[x_floor, y_ceil, :]
-    			v4 = image[x_ceil, y_ceil, :]
-
-    			q1 = v1 * (x_ceil - curr_x) + v2 * (curr_x - x_floor)
-    			q2 = v3 * (x_ceil - curr_x) + v4 * (curr_x - x_floor)
-    			q = q1 * (y_ceil - y) + q2 * (y - y_floor)
-
-    		new_image[i][x] = q
-    return new_image
 
 def open_window_save(filename,np_image):
 
@@ -677,6 +613,7 @@ def tocrop(image,start,end):
 
         for x in range(startwidth,endwidth):
             print(index_x)
+
             cropImage[index_y][index_x] = image[y][x]
 
             index_x+=1
@@ -753,8 +690,6 @@ def togray(image,start,end, color_key=None):
     return grayImage
 
 
-
-
 def main():
     parser = argparse.ArgumentParser(description='A simple image viewer.')
 
@@ -768,13 +703,9 @@ def main():
     print(f'{image.shape}')
 
 
-    image = resize_image(image)
+    #image = resize_image(image,316 ,480)
 
     display_image(image,args.file)
-
-
-
-
 
 
 if __name__ == '__main__':
