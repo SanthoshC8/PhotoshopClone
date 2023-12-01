@@ -1,19 +1,7 @@
-import argparse
 import PySimpleGUI as sg
-import scipy as sp
-from PIL import Image
-import PIL
-from io import BytesIO
 import numpy as np
-import cv2
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib import colors
-
-import matplotlib.pyplot as plt
-import matplotlib
 import math
-import time
-import yaml
+
 
 def open_window_resize(np_image):
 
@@ -61,8 +49,6 @@ def open_window_resize(np_image):
     window.close()
 
 
-
-
 def constrained(image,vh,vw):
     h,w,c = image.shape
 
@@ -78,6 +64,7 @@ def constrained(image,vh,vw):
         neww = round(w * temp)
 
     return newh,neww
+
 
 def resizeNN(image,h,w):
     h = int(h)
@@ -97,12 +84,10 @@ def resizeNN(image,h,w):
     for i in range(h):
         curr_w = 0
         for x in range(w):
-            #print(curr_w)
             new_image[i][x] = image[math.floor(curr_h)][math.floor(curr_w)]
             curr_w +=frac_w
         curr_h +=frac_h
     return new_image
-
 
 
 def resizebil(image,h,w):

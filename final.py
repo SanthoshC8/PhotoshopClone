@@ -1,32 +1,26 @@
 import argparse
 import PySimpleGUI as sg
-import scipy as sp
 from PIL import Image
-import PIL
 from io import BytesIO
 import numpy as np
 import cv2
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib import colors
-
 import matplotlib.pyplot as plt
 import matplotlib
-import math
-import time
-import yaml
-
 from resize import *
+
+import time
 
 matplotlib.use('TkAgg')
 
 #THINGS NEEDED TO BE DONE
 # - CHNAGE DESIGN
 # - SORT IF STATEMNTS PROPERLY
-# - MAKE FUNCTIONS IN DIFFERENT FILES
+# - MAKE FUNCTIONS IN DIFFERENT FILES under modules folder
 # - comment functions and if statements
-# - make the undo/redo into a function
-# - add cut
-# - add brush impossible
+# - fix spaces between functions
+# - add default to combo
+# - add opening page for photoshop
+# - delete print statemnts
 
 
 
@@ -47,6 +41,8 @@ def display_image(np_image,filename):
     imagelist=[np_image]
     currentimage = 0
 
+    brush_choice =  [None,None]
+
     image_data = np_im_to_data(np_image)
 
     if len(np_image.shape) ==2:
@@ -56,13 +52,6 @@ def display_image(np_image,filename):
 
     height = h
     width = w
-
-
-
-    rb=[]
-    rb.append(sg.Radio("Arts", "faculty", key='arts', enable_events=True,default=True))
-    rb.append(sg.Radio("Commerce", "faculty", key='comm', enable_events=True))
-    rb.append(sg.Radio("Science", "faculty", key='sci',enable_events=True))
 
 
     # Define the layout
@@ -100,10 +89,13 @@ def display_image(np_image,filename):
         sg.Button('Resize'),
         sg.Button('Save'),
         sg.Button('Exit')],
-
+        [sg.Slider(range=(0,15),default_value=0,expand_x=True, enable_events=True,
+        orientation='horizontal', key='-MOUSESIZE-'),
+        sg.Combo(['brush','sel',] ,size=(20, 4),readonly=True, enable_events=True, key='-MOUSE-'),
+        sg.Button('Cut'),
         ]
 
-    row = []
+        ]
 
 
     # Create the window
@@ -124,6 +116,8 @@ def display_image(np_image,filename):
     start_data = [None,None]
     end_data = [None,None]
 
+    brush_count = 0
+
     # Event loop
     while True:
 
@@ -131,77 +125,119 @@ def display_image(np_image,filename):
         if event == sg.WINDOW_CLOSED or event == 'Exit':
             break
         if event == "-IMAGE-":  # if there's a "Graph" event, then it's a mouse
+            #start_time = time.time()
+
 
             x, y = values["-IMAGE-"]
-            #print(x,y)
-            if not dragging:
-                start_point = [x,y]
-                dragging = True
+            if values['-MOUSE-'] != 'brush':
+
+                if not dragging:
+                    start_point = [x,y]
+                    dragging = True
+                else:
+                    end_point = [x,y]
+                if prior_rect:
+                    graph.delete_figure(prior_rect)
+                if None not in (start_point, end_point):
+                    prior_rect = graph.draw_rectangle(start_point, end_point, line_color='blue')
             else:
-                end_point = [x,y]
-            if prior_rect:
-                graph.delete_figure(prior_rect)
-            if None not in (start_point, end_point):
-                prior_rect = graph.draw_rectangle(start_point, end_point, line_color='blue')
+                start_time = time.time()
+
+                start_data = [x,y]
+                end_data = [x+int(values["-MOUSESIZE-"]),y+int(values["-MOUSESIZE-"])]
+                if brush_choice[0] != "":
+                    if brush_choice[0] == "_colour":
+                        np_image = changecolour(np_image,brush_choice[1],start_data,end_data)
+
+                    elif brush_choice[0] == "To Gray":
+                        np_image = togray(np_image,start_data,end_data)
+
+                    elif brush_choice[0] == "Averaging":
+                        np_image =apply_filter_to_image(np_image,brush_choice[1],start_data,end_data)
+
+
+
+
+                    elif brush_choice[0] == "Gaussian":
+                        np_image =apply_filter_to_image(np_image,brush_choice[1],start_data,end_data)
+
+
+                    brush_count+=1
+                    if brush_count == 50:
+                        brush_count =0
+                        # image_data = np_im_to_data(np_image)
+                        #
+                        # graph.draw_image(data=image_data, location=(0, height))
+                    # end_time = time.time()
+                    # print(round(end_time-start_time,2))
+
+
+
+
+
+
+
 
         elif event.endswith('+UP'):  # The drawing has ended because mouse up
-            info = window["info"]
-            start_data = start_point
-            end_data = end_point
-            info.update(value=f"grabbed rectangle from {start_data[0],start_data[1]} to {end_data[0],end_data[1]}")
+            if values['-MOUSE-'] != 'brush':
+                info = window["info"]
+                start_data = start_point
+                end_data = end_point
+                info.update(value=f"grabbed rectangle from {start_data[0],start_data[1]} to {end_data[0],end_data[1]}")
 
-            #np_image = pixeltoblack(np_image,start_point,end_point)
-            #image_data = np_im_to_data(np_image)
-            #graph.draw_image(data=image_data, location=(0, height))
+                #np_image = pixeltoblack(np_image,start_point,end_point)
+                #image_data = np_im_to_data(np_image)
+                #graph.draw_image(data=image_data, location=(0, height))
 
-            start_point = [None,None]
-            end_point = [None,None]  # enable grabbing a new rect
-            dragging = False
+                start_point = [None,None]
+                end_point = [None,None]  # enable grabbing a new rect
+                dragging = False
+            else:
+                imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
+
+                image_data = np_im_to_data(np_image)
+
+                graph.draw_image(data=image_data, location=(0, height))
+
 
 
         if event.endswith("_colour"):
 
             colour = [int(x) for x in event[:-7].split(",")]
 
-
-            np_image = changecolour(np_image,colour,start_data,end_data)
-
-            if len(imagelist)-1>currentimage:
-                currentimage+=1
-                imagelist[currentimage] = np_image
-                del imagelist[currentimage+1:]
-
+            if values['-MOUSE-'] == 'brush':
+                brush_choice = ['_colour',colour]
 
             else:
-                imagelist.append(np_image)
-                currentimage+=1
+                np_image = changecolour(np_image,colour,start_data,end_data)
+
+                imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
 
 
-            print("cur",currentimage)
-            image_data = np_im_to_data(np_image)
-            graph.draw_image(data=image_data, location=(0, height))
-            # start_point = [None,None]
-            # end_point = [None,None]  # enable grabbing a new rect
-            # dragging = False
+                print("cur",currentimage)
+                image_data = np_im_to_data(np_image)
+                graph.draw_image(data=image_data, location=(0, height))
+                # start_point = [None,None]
+                # end_point = [None,None]  # enable grabbing a new rect
+                # dragging = False
+
 
         if event == "To Gray":
-            np_image = togray(np_image,start_data,end_data)
 
-            if len(imagelist)-1>currentimage:
-                currentimage+=1
-                imagelist[currentimage] = np_image
-                del imagelist[currentimage+1:]
+            if values['-MOUSE-'] == 'brush':
+                brush_choice = ['To Gray',None]
+
             else:
-                imagelist.append(np_image)
-                currentimage+=1
+                np_image = togray(np_image,start_data,end_data)
 
-            print("cur",currentimage)
-            image_data = np_im_to_data(np_image)
-            graph.draw_image(data=image_data, location=(0, height))
+                imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
+
+                print("cur",currentimage)
+                image_data = np_im_to_data(np_image)
+                graph.draw_image(data=image_data, location=(0, height))
 
 
         if event =="Undo":
-
             if currentimage>0:
                 currentimage-=1
                 print("cur",currentimage)
@@ -225,13 +261,7 @@ def display_image(np_image,filename):
         if event =="Crop":
             np_image = tocrop(np_image,start_data,end_data)
 
-            if len(imagelist)-1>currentimage:
-                currentimage+=1
-                imagelist[currentimage] = np_image
-                del imagelist[currentimage+1:]
-            else:
-                imagelist.append(np_image)
-                currentimage+=1
+            imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
 
             print("cur",currentimage)
             image_data = np_im_to_data(np_image)
@@ -241,58 +271,43 @@ def display_image(np_image,filename):
 
 
         if event == 'Averaging':
-
-            np_image =apply_filter_to_image(np_image,[int(values['-SL-']),'a'],start_data,end_data)
-
-            if len(imagelist)-1>currentimage:
-                currentimage+=1
-                imagelist[currentimage] = np_image
-                del imagelist[currentimage+1:]
-
+            if values['-MOUSE-'] == 'brush':
+                brush_choice = ['Averaging',[int(values['-SL-']),'a']]
 
             else:
-                imagelist.append(np_image)
-                currentimage+=1
 
-            image_data = np_im_to_data(np_image)
+                np_image =apply_filter_to_image(np_image,[int(values['-SL-']),'a'],start_data,end_data)
+
+                imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
+
+                image_data = np_im_to_data(np_image)
 
 
-            graph.draw_image(data=image_data, location=(0, height))
-
+                graph.draw_image(data=image_data, location=(0, height))
 
 
         if event == 'Gaussian':
             tt = gaussian2d(math.sqrt(int(values['-SL-'])*(1/3)), 2*int(values['-SL-'])+1)
 
-            np_image =apply_filter_to_image(np_image,[int(values['-SL-']),tt],start_data,end_data)
-
-            if len(imagelist)-1>currentimage:
-                currentimage+=1
-                imagelist[currentimage] = np_image
-                del imagelist[currentimage+1:]
-
+            if values['-MOUSE-'] == 'brush':
+                brush_choice = ['Gaussian',[int(values['-SL-']),tt]]
 
             else:
-                imagelist.append(np_image)
-                currentimage+=1
 
-            image_data = np_im_to_data(np_image)
+                np_image =apply_filter_to_image(np_image,[int(values['-SL-']),tt],start_data,end_data)
+
+                imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
+
+                image_data = np_im_to_data(np_image)
 
 
-            graph.draw_image(data=image_data, location=(0, height))
+                graph.draw_image(data=image_data, location=(0, height))
 
 
         if event =="Addimage":
             np_image = addimage(np_image,values['-RESIZEOP-'],start_data,end_data)
 
-
-            if len(imagelist)-1>currentimage:
-                currentimage+=1
-                imagelist[currentimage] = np_image
-                del imagelist[currentimage+1:]
-            else:
-                imagelist.append(np_image)
-                currentimage+=1
+            imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
 
             image_data = np_im_to_data(np_image)
             graph.erase()
@@ -300,19 +315,11 @@ def display_image(np_image,filename):
             graph.draw_image(data=image_data, location=(0, height))
 
 
-
-
-
         if event =="Resize":
             np_image = open_window_resize(np_image)
+
+            imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
             image_data = np_im_to_data(np_image)
-            if len(imagelist)-1>currentimage:
-                currentimage+=1
-                imagelist[currentimage] = np_image
-                del imagelist[currentimage+1:]
-            else:
-                imagelist.append(np_image)
-                currentimage+=1
             graph.erase()
             height,w,c = np_image.shape
             graph.draw_image(data=image_data, location=(0, height))
@@ -320,14 +327,70 @@ def display_image(np_image,filename):
         if event == 'Save':
             filename = open_window_save(filename,np_image)
 
+        if event == 'Cut':
+            np_image = open_window_cut(np_image)
+            imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
+            image_data = np_im_to_data(np_image)
+            graph.erase()
+            height,w,c = np_image.shape
+            graph.draw_image(data=image_data, location=(0, height))
+
 
 
     window.close()
 
 
+def open_window_cut(np_image):
+    px = 0
+    layout = [[sg.Text("cut"),
+    sg.Input(px,enable_events=True, key='-INPUT-'),
+    sg.Text("px from the"),
+    sg.Combo(['top','bottom','left','right'] ,size=(20, 4),readonly=True, enable_events=True, key='-ORDER-'),
 
 
+    ],
+    [sg.Button('Cut'),sg.Button('Cancel')]
+    ]
 
+    window = sg.Window("Save", layout, modal=True)
+
+    height ,width ,c = np_image.shape
+
+    while True:
+        event, values = window.read()
+
+        if event == 'Cancel' or event == sg.WIN_CLOSED:
+            window.close()
+            return np_image
+            break
+        if event == 'Cut':
+            temp = int(values['-INPUT-'])
+
+            if values['-ORDER-'] == 'top':
+                np_image = tocrop(np_image,[0,0],[width,height-temp])
+            elif values['-ORDER-'] == 'bottom':
+                np_image = tocrop(np_image,[0,0+temp],[width,height])
+            elif values['-ORDER-'] == 'left':
+                np_image = tocrop(np_image,[0+temp,0],[width,height])
+            elif values['-ORDER-'] == 'right':
+                np_image = tocrop(np_image,[0,0],[width-temp,height])
+
+            window.close()
+            return np_image
+            break
+
+    window.close()
+
+
+def update_image_list(np_image,imagelist,currentimage):
+    if len(imagelist)-1>currentimage:
+        currentimage+=1
+        imagelist[currentimage] = np_image
+        del imagelist[currentimage+1:]
+    else:
+        imagelist.append(np_image)
+        currentimage+=1
+    return imagelist,currentimage
 
 
 def addimage(image,order,start,end):
@@ -430,20 +493,6 @@ def addimage(image,order,start,end):
     window.close()
 
 
-
-    # res = image.copy()
-    #
-    # res = np.r_[res,image2    ]
-    #
-    #
-    # return res
-
-
-
-
-
-
-
 def gaussian2_xy(mean, cov, xy):
     invcov = np.linalg.inv(cov)
     results = np.ones([xy.shape[0], xy.shape[1]])
@@ -466,6 +515,7 @@ def gaussian2_n(mean, cov, n):
 
     return gaussian2_xy(mean, cov, xy), xc, yc
 
+
 def gaussian2d(var, n):
     mean =  np.array([0, 0])
     mean = mean.reshape(2,1)
@@ -478,47 +528,24 @@ def apply_filter_to_patch(patch,filter):
 
 
     if filter[1] =="a":
-
         hxw = 2*filter[0] + 1
-
         h = (np.ones(hxw*hxw).reshape(hxw,hxw) )/ (hxw*hxw)
-
-        #print(h)
-        #print("_________________________")
-
         return round(np.dot(np.reshape(patch, (hxw*hxw)), np.reshape(h, (hxw*hxw))))
 
     else:
         hxw = 2*filter[0] + 1
-
-        #h = gaussian2d(7, hxw)
-
         h = filter[1]
-        #print(h)
-        #print(h)
-        #print("_________________________")
-        #print(round((np.dot(np.reshape(patch, (hxw*hxw)), np.reshape(h, (hxw*hxw))))/np.sum(h)))
-        #return round(np.dot(np.reshape(patch, (hxw*hxw)), np.reshape(h, (hxw*hxw))))
         return round((np.dot(np.reshape(patch, (hxw*hxw)), np.reshape(h, (hxw*hxw))))/np.sum(h))
 
 
-
 def apply_filter_to_image(image, filter,start,end):
-    #I_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-
 
     height ,width ,c = image.shape
-
     startheight = max(start[1],end[1])
-
     startheight = height - startheight
-
     endheight = min(start[1],end[1])
-
     endheight = height - endheight
-
     startwidth = min(start[0],end[0])
-
     endwidth = max(start[0],end[0])
 
     I_red = image[:,:,0].copy()
@@ -558,33 +585,6 @@ def apply_filter_to_image(image, filter,start,end):
     return imagetest
 
 
-
-def open_window_save(filename,np_image):
-
-    layout = [[sg.Text("filename"),sg.Input(filename,enable_events=True, key='-INPUT-')],
-    [sg.Button('Save'),sg.Button('Cancel')]
-    ]
-
-    window = sg.Window("Save", layout, modal=True)
-
-    while True:
-        event, values = window.read()
-        if event == 'Cancel' or event == sg.WIN_CLOSED:
-            window.close()
-            return filename
-            break
-        if event == 'Save':
-            temp = values['-INPUT-']
-            np_image = Image.fromarray(np_image)
-            np_image = np_image.save(temp)
-
-            window.close()
-            return temp
-            break
-
-
-    window.close()
-
 def tocrop(image,start,end):
     height ,width ,c = image.shape
 
@@ -622,8 +622,12 @@ def tocrop(image,start,end):
 
 
 
-    print(cropImage.shape)
+
+
+
+
     return cropImage
+
 
 def changecolour(image,colour,start,end):
 
@@ -631,15 +635,10 @@ def changecolour(image,colour,start,end):
 
 
     startheight = max(start[1],end[1])
-
     startheight = height - startheight
-
     endheight = min(start[1],end[1])
-
     endheight = height - endheight
-
     startwidth = min(start[0],end[0])
-
     endwidth = max(start[0],end[0])
 
     colourImage = image.copy()
@@ -652,21 +651,17 @@ def changecolour(image,colour,start,end):
 
     return colourImage
 
+
 def togray(image,start,end, color_key=None):
 
 
     height ,width ,c = image.shape
 
     startheight = max(start[1],end[1])
-
     startheight = height - startheight
-
     endheight = min(start[1],end[1])
-
     endheight = height - endheight
-
     startwidth = min(start[0],end[0])
-
     endwidth = max(start[0],end[0])
 
     #image[startheight:endheight, startwidth:endwidth, 0] = 255
@@ -690,20 +685,46 @@ def togray(image,start,end, color_key=None):
     return grayImage
 
 
+def open_window_save(filename,np_image):
+
+    layout = [[sg.Text("filename"),sg.Input(filename,enable_events=True, key='-INPUT-')],
+    [sg.Button('Save'),sg.Button('Cancel')]
+    ]
+
+    window = sg.Window("Save", layout, modal=True)
+
+    while True:
+        event, values = window.read()
+        if event == 'Cancel' or event == sg.WIN_CLOSED:
+            window.close()
+            return filename
+            break
+        if event == 'Save':
+            temp = values['-INPUT-']
+            try:
+                np_image = Image.fromarray(np_image)
+
+            except:
+                np_image = Image.fromarray((np_image).astype(np.uint8))
+
+            #np_image = Image.fromarray(np_image)
+            np_image = np_image.save(temp)
+            window.close()
+            return temp
+            break
+
+    window.close()
+
+
 def main():
     parser = argparse.ArgumentParser(description='A simple image viewer.')
-
     parser.add_argument('file', action='store', help='Image file.')
     args = parser.parse_args()
-
 
     print(f'Loading {args.file} ... ', end='')
     image = cv2.imread(args.file)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     print(f'{image.shape}')
-
-
-    #image = resize_image(image,316 ,480)
 
     display_image(image,args.file)
 
