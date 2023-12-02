@@ -5,6 +5,7 @@ from io import BytesIO
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+from matplotlib import colors
 import matplotlib
 from resize import *
 
@@ -21,6 +22,7 @@ matplotlib.use('TkAgg')
 # - add default to combo
 # - add opening page for photoshop
 # - delete print statemnts
+# - MAKE VIDEO ABOUT MOVIE POSTER
 
 
 
@@ -93,6 +95,10 @@ def display_image(np_image,filename):
         orientation='horizontal', key='-MOUSESIZE-'),
         sg.Combo(['brush','sel',] ,size=(20, 4),readonly=True, enable_events=True, key='-MOUSE-'),
         sg.Button('Cut'),
+        sg.Input('',enable_events=True, key='-WORD-'),
+        sg.Combo(['black','white','grey','red','green','blue','yellow'] ,size=(20, 4),readonly=True, enable_events=True, key='-WORDCOLOUR-'),
+
+        sg.Button('Alphabet'),
         ]
 
         ]
@@ -335,6 +341,33 @@ def display_image(np_image,filename):
             height,w,c = np_image.shape
             graph.draw_image(data=image_data, location=(0, height))
 
+
+        if event == 'Alphabet':
+            word = values['-WORD-']
+            wordcolour = values['-WORDCOLOUR-']
+            if wordcolour =='black':
+                wordcolour = [0,0,0]
+            elif wordcolour =='white':
+                wordcolour = [255,255,255]
+            elif wordcolour =='grey':
+                wordcolour = [128,128,128]
+            elif wordcolour =='red':
+                wordcolour = [255,0,0]
+            elif wordcolour =='green':
+                wordcolour = [0,128,0]
+
+            elif wordcolour =='blue':
+                wordcolour = [0,0,255]
+            elif wordcolour =='yellow':
+                wordcolour = [255,0,0]
+            np_image = alphabet(np_image,word,wordcolour,start_data,end_data)
+
+            imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
+
+            print("cur",currentimage)
+            image_data = np_im_to_data(np_image)
+
+            graph.draw_image(data=image_data, location=(0, height))
 
 
     window.close()
@@ -589,17 +622,11 @@ def tocrop(image,start,end):
     height ,width ,c = image.shape
 
     startheight = max(start[1],end[1])
-
     startheight = height - startheight
-
     endheight = min(start[1],end[1])
-
     endheight = height - endheight
-
     startwidth = min(start[0],end[0])
-
     endwidth = max(start[0],end[0])
-    print(startheight-endheight,endwidth-startwidth)
 
     cropImage = np.zeros((endheight-startheight,endwidth-startwidth,3))
 
@@ -612,18 +639,11 @@ def tocrop(image,start,end):
         index_x =0
 
         for x in range(startwidth,endwidth):
-            print(index_x)
-
             cropImage[index_y][index_x] = image[y][x]
 
             index_x+=1
 
         index_y+=1
-
-
-
-
-
 
 
     return cropImage
@@ -648,8 +668,72 @@ def changecolour(image,colour,start,end):
             colourImage[y][x] = colour
 
 
-
     return colourImage
+
+
+def alphabet(image,word,wordcolour,start,end):
+    print(wordcolour)
+    height ,width ,c = image.shape
+    startheight = max(start[1],end[1])
+    startheight = height - startheight
+    endheight = min(start[1],end[1])
+    endheight = height - endheight
+    startwidth = min(start[0],end[0])
+    endwidth = max(start[0],end[0])
+
+    alphImage = image.copy()
+
+
+    n,p=(endwidth-startwidth),len(word)
+    c,r=divmod(n,p)
+    wsize=[c]*(p-r) + [c+1]*r
+    print(wsize)
+    lettercount = 0
+    for letter in word:
+        if lettercount==0:
+            imageword = cv2.imread('letters/{}.png'.format(letter))
+            imageword = cv2.cvtColor(imageword, cv2.COLOR_BGR2RGB)
+            h2,w2,c2 = imageword.shape
+            imageword = tocrop(imageword,[0,0+53],[w2,h2])
+            imageword = tocrop(imageword,[0,0],[w2,w2-24])
+            imageword = resizebil(imageword,endheight-startheight , wsize[lettercount])
+        else:
+            imageletter = cv2.imread('{}.png'.format(letter))
+            imageletter = cv2.cvtColor(imageletter, cv2.COLOR_BGR2RGB)
+            h2,w2,c2 = imageletter.shape
+            imageletter = tocrop(imageletter,[0,0+53],[w2,h2])
+            imageletter = tocrop(imageletter,[0,0],[w2,w2-24])
+            imageletter = resizebil(imageletter,endheight-startheight ,wsize[lettercount])
+            imageword = np.hstack([imageword,imageletter    ] )
+
+        lettercount+=1
+
+    #return imageword
+
+    print(imageword.shape)
+    print(endwidth-startwidth)
+
+
+
+
+    y2=0
+    for y in range(startheight,endheight):
+        x2=0
+        for x in range(startwidth,endwidth):
+            #print(image2[y2][x2])
+
+            if (imageword[y2][x2] == [0, 0, 0]).all():
+                #print(x2,y2)
+                alphImage[y][x] = wordcolour
+            # else:
+            #     colourImage[y][x] = [255, 255, 255]
+
+            x2+=1
+        y2+=1
+
+
+    return alphImage
+
 
 
 def togray(image,start,end, color_key=None):
