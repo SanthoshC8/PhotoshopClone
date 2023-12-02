@@ -55,9 +55,7 @@ def display_image(np_image,filename):
     height = h
     width = w
 
-
-    # Define the layout
-    layout = [[sg.Graph(
+    file_list_column = [[sg.Graph(
         canvas_size=(700, 700),
         graph_bottom_left=(0, 0),
         graph_top_right=(700, 700),
@@ -65,47 +63,110 @@ def display_image(np_image,filename):
         background_color='white',
         change_submits=True,
         drag_submits=True),
-        sg.Button('Change Image'),
-        sg.Button('', button_color=('black', "#FF0000"), key="255,0,0_colour", pad=(0,0)),
-        sg.Button('', button_color=('black', "#FFA500"), key="255,165,0_colour", pad=(0,0)),
-        sg.Button('', button_color=('black', "#FFFF00"), key="255,255,0_colour", pad=(0,0)),
-        sg.Button('', button_color=('black', "#008000"), key="0,128,0_colour", pad=(0,0)),
-        sg.Button('', button_color=('black', "#0000FF"), key="0,0,255_colour", pad=(0,0)),
-        sg.Button('', button_color=('black', "#800080"), key="128,0,128_colour", pad=(0,0)),
-        sg.Button('', button_color=('black', "#FFC0CB"), key="255,192,203_colour", pad=(0,0)),
-        sg.Button('', button_color=('black', "#966919"), key="150,105,25_colour", pad=(0,0)),
-        sg.Button('', button_color=('black', "#808080"), key="128,128,128_colour", pad=(0,0)),
-        sg.Button('', button_color=('black', "#000000"), key="0,0,0_colour", pad=(0,0)),
-        sg.Button('', button_color=('black', "#FFFFFF"), key="255,255,255_colour", pad=(0,0)),
-        sg.Text(key='info', size=(60, 1)),
-        sg.Button('Gray',key="To Gray")],
-        [sg.Button('undo',key="Undo"),
-        sg.Button('redo',key="Redo"),
-        sg.Button('crop',key="Crop"),
-        sg.Slider(range=(0,15),default_value=0,expand_x=True, enable_events=True,
-        orientation='horizontal', key='-SL-'),
-        sg.Button('Averaging'),
-        sg.Button('Gaussian'),
-        sg.Button('Addimage'),
-        sg.Combo(['up','down','left','right','custom'] ,size=(20, 4),readonly=True, enable_events=True, key='-RESIZEOP-'),
-        sg.Button('Resize'),
-        sg.Button('Save'),
-        sg.Button('Exit')],
-        [sg.Slider(range=(0,15),default_value=0,expand_x=True, enable_events=True,
-        orientation='horizontal', key='-MOUSESIZE-'),
-        sg.Combo(['brush','sel',] ,size=(20, 4),readonly=True, enable_events=True, key='-MOUSE-'),
-        sg.Button('Cut'),
-        sg.Input('',enable_events=True, key='-WORD-'),
-        sg.Combo(['black','white','grey','red','green','blue','yellow'] ,size=(20, 4),readonly=True, enable_events=True, key='-WORDCOLOUR-'),
 
-        sg.Button('Alphabet'),
-        ]
 
-        ]
+        ]]
+
+    image_viewer_column = [[
+
+    sg.Button('', button_color=('black', "#FF0000"), key="255,0,0_colour", pad=(0,0)),
+    sg.Button('', button_color=('black', "#FFA500"), key="255,165,0_colour", pad=(0,0)),
+    sg.Button('', button_color=('black', "#FFFF00"), key="255,255,0_colour", pad=(0,0)),
+    sg.Button('', button_color=('black', "#008000"), key="0,128,0_colour", pad=(0,0)),
+    sg.Button('', button_color=('black', "#0000FF"), key="0,0,255_colour", pad=(0,0)),
+    sg.Button('', button_color=('black', "#800080"), key="128,0,128_colour", pad=(0,0)),
+    sg.Button('', button_color=('black', "#FFC0CB"), key="255,192,203_colour", pad=(0,0)),
+    sg.Button('', button_color=('black', "#966919"), key="150,105,25_colour", pad=(0,0)),
+    sg.Button('', button_color=('black', "#808080"), key="128,128,128_colour", pad=(0,0)),
+    sg.Button('', button_color=('black', "#000000"), key="0,0,0_colour", pad=(0,0)),
+    sg.Button('', button_color=('black', "#FFFFFF"), key="255,255,255_colour", pad=(0,0)),
+    sg.Text(key='info', size=(20, 1)),
+    sg.Button('Gray'),
+    ]
+
+    ,
+    [sg.Button('Undo'),
+    sg.Button('Redo'),
+    sg.Button('Crop'),],[
+    sg.Slider(range=(1,15),default_value=0, enable_events=True,
+    orientation='horizontal', key='-SL-'),
+    sg.Button('Averaging'),
+    sg.Button('Gaussian'),],[
+    sg.Button('Addimage'),
+    sg.Combo(['up','down','left','right','custom'] ,size=(20, 4),readonly=True, enable_events=True, key='-RESIZEOP-'),
+    sg.Button('Resize'),],[
+    sg.Button('Save'),
+    sg.Button('Exit')],
+    [sg.Slider(range=(1,15),default_value=0,expand_x=True, enable_events=True,
+    orientation='horizontal', key='-MOUSESIZE-'),
+    sg.Combo(['brush','sel',] ,size=(20, 4),readonly=True, enable_events=True, key='-MOUSE-'),
+    sg.Button('Cut'),],[
+    sg.Input('',enable_events=True, key='-WORD-',size=(20, 4)),
+    sg.Combo(['black','white','grey','red','green','blue','yellow'] ,size=(20, 4),readonly=True, enable_events=True, key='-WORDCOLOUR-'),
+
+    sg.Button('Alphabet'),
+    ]
+    ]
+    # ----- Full layout -----
+    layout2 = [
+        [sg.Column(file_list_column),
+         sg.VSeperator(),
+         sg.Column(image_viewer_column,size=(500,700)),]
+    ]
+
+
+    # Define the layout
+    # layout = [[sg.Graph(
+    #     canvas_size=(700, 700),
+    #     graph_bottom_left=(0, 0),
+    #     graph_top_right=(700, 700),
+    #     key='-IMAGE-',
+    #     background_color='white',
+    #     change_submits=True,
+    #     drag_submits=True),
+    #     sg.Button('Change Image'),
+    #     sg.Button('', button_color=('black', "#FF0000"), key="255,0,0_colour", pad=(0,0)),
+    #     sg.Button('', button_color=('black', "#FFA500"), key="255,165,0_colour", pad=(0,0)),
+    #     sg.Button('', button_color=('black', "#FFFF00"), key="255,255,0_colour", pad=(0,0)),
+    #     sg.Button('', button_color=('black', "#008000"), key="0,128,0_colour", pad=(0,0)),
+    #     sg.Button('', button_color=('black', "#0000FF"), key="0,0,255_colour", pad=(0,0)),
+    #     sg.Button('', button_color=('black', "#800080"), key="128,0,128_colour", pad=(0,0)),
+    #     sg.Button('', button_color=('black', "#FFC0CB"), key="255,192,203_colour", pad=(0,0)),
+    #     sg.Button('', button_color=('black', "#966919"), key="150,105,25_colour", pad=(0,0)),
+    #     sg.Button('', button_color=('black', "#808080"), key="128,128,128_colour", pad=(0,0)),
+    #     sg.Button('', button_color=('black', "#000000"), key="0,0,0_colour", pad=(0,0)),
+    #     sg.Button('', button_color=('black', "#FFFFFF"), key="255,255,255_colour", pad=(0,0)),
+    #     sg.Text(key='info', size=(60, 1)),
+    #     sg.Button('Gray',key="To Gray"),
+    #
+    #     ],
+    #     [sg.Button('undo',key="Undo"),
+    #     sg.Button('redo',key="Redo"),
+    #     sg.Button('crop',key="Crop"),
+    #     sg.Slider(range=(0,15),default_value=0,expand_x=True, enable_events=True,
+    #     orientation='horizontal', key='-SL-'),
+    #     sg.Button('Averaging'),
+    #     sg.Button('Gaussian'),
+    #     sg.Button('Addimage'),
+    #     sg.Combo(['up','down','left','right','custom'] ,size=(20, 4),readonly=True, enable_events=True, key='-RESIZEOP-'),
+    #     sg.Button('Resize'),
+    #     sg.Button('Save'),
+    #     sg.Button('Exit')],
+    #     [sg.Slider(range=(0,15),default_value=0,expand_x=True, enable_events=True,
+    #     orientation='horizontal', key='-MOUSESIZE-'),
+    #     sg.Combo(['brush','sel',] ,size=(20, 4),readonly=True, enable_events=True, key='-MOUSE-'),
+    #     sg.Button('Cut'),
+    #     sg.Input('',enable_events=True, key='-WORD-'),
+    #     sg.Combo(['black','white','grey','red','green','blue','yellow'] ,size=(20, 4),readonly=True, enable_events=True, key='-WORDCOLOUR-'),
+    #
+    #     sg.Button('Alphabet'),
+    #     ]
+    #
+    #     ]
 
 
     # Create the window
-    window = sg.Window('Display Image', layout, finalize=True)
+    window = sg.Window('Display Image', layout2, finalize=True)
 
 
     graph = window["-IMAGE-"]
@@ -155,7 +216,7 @@ def display_image(np_image,filename):
                     if brush_choice[0] == "_colour":
                         np_image = changecolour(np_image,brush_choice[1],start_data,end_data)
 
-                    elif brush_choice[0] == "To Gray":
+                    elif brush_choice[0] == "Gray":
                         np_image = togray(np_image,start_data,end_data)
 
                     elif brush_choice[0] == "Averaging":
@@ -228,10 +289,10 @@ def display_image(np_image,filename):
                 # dragging = False
 
 
-        if event == "To Gray":
+        if event == "Gray":
 
             if values['-MOUSE-'] == 'brush':
-                brush_choice = ['To Gray',None]
+                brush_choice = ['Gray',None]
 
             else:
                 np_image = togray(np_image,start_data,end_data)
