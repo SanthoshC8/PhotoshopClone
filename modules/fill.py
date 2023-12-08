@@ -32,42 +32,25 @@ def apply_effects(np_image,start,eff,thresh):
 
 
 def floodFill( gradient_magnitude,image, sr, sc, eff,thresh):
-
-        rows,cols,c = image.shape
-        # rows = 249
-        # cols = 370
-        color_to_change = image[sr][sc].copy()
+        height,width,c = image.shape
         tt = gradient_magnitude[sr][sc].copy()
-        print("c",gradient_magnitude[sr, sc])
 
         def dfs(r, c):
-            nonlocal rows, cols,  image
-            if r <= 0 or c <= 0 :
-                return
-            elif r>rows-1 or c>cols-1:
+            nonlocal height, width,  image
+            if r <= 0 or c <= 0 or r>height-1 or c>width-1:
                 return
             elif (image[r][c]==eff[1]).all() or gradient_magnitude[r, c]==-666:
                 return
             elif not tt-thresh<=gradient_magnitude[r][c]<=tt+thresh:
-
                 return
-
-
             if eff[0] == "_colour":
                 image = changecolour(image,eff[1],[r,c],[r,c])
-
             elif eff[0] =="Gray":
                 image = togray(image,[r,c],[r,c])
                 gradient_magnitude[r, c] = -666
-            #image[r][c] = newColor
-            #print("c3",color_to_change)
-
-			# radiate in four directions
             dfs(r+1,c)
             dfs(r-1,c)
             dfs(r,c+1)
             dfs(r,c-1)
-
         dfs(sr, sc)
-
         return image

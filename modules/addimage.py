@@ -23,12 +23,12 @@ def addimage(image,order,start,end):
             newimage = cv2.cvtColor(newimage, cv2.COLOR_BGR2RGB)
             res = image.copy()
 
-            if order=='up':
+            if order=='top':
                 newimage_height , newimage_width = constrained(newimage,None,image_w)
 
                 newimage = resizebil(newimage,newimage_height , newimage_width)
                 res = np.vstack([newimage,res    ] )
-            elif order=='down':
+            elif order=='bottom':
                 newimage_height , newimage_width = constrained(newimage,None,image_w)
                 newimage = resizebil(newimage,newimage_height , newimage_width)
                 res = np.vstack([res,newimage    ] )

@@ -20,11 +20,16 @@ from modules.save import *
 from modules.colour import *
 from modules.gray import *
 from modules.fill import *
+from modules.brightness import *
+from modules.saturation import *
+from modules.flip import *
+from modules.rotate import *
 import sys
 
 sys.setrecursionlimit(100000)
 matplotlib.use('TkAgg')
 
+# add flood fill,labs,selection rectangle reference
 
 
 
@@ -81,7 +86,7 @@ def display_image(np_image,filename):
 
     ],[sg.Text("Brush Size:"),sg.Slider(range=(1,15),default_value=0,expand_x=True, enable_events=True,
     orientation='horizontal', key='-MOUSESIZE-'),
-    sg.Text("Fill Tolerance :"),sg.Slider(range=(1,100),default_value=0,expand_x=True, enable_events=True,
+    sg.Text("Fill Tolerance :"),sg.Slider(range=(1,50),default_value=0,expand_x=True, enable_events=True,
     orientation='horizontal', key='-THRESHHOLD-')]
     ,
     [sg.HSeparator()],
@@ -102,8 +107,17 @@ def display_image(np_image,filename):
     sg.Text(key='info', size=(20, 1)),
     sg.Button('Gray'),
     ],
-    [sg.HSeparator()]
+    [sg.HSeparator()],
+    [sg.Text('Brightness/Saturation:'),
+    sg.Slider(range=(-30,30),default_value=0, enable_events=True,
+    orientation='horizontal', key='-BRIGHT-'),
+    sg.Button('Brightness'),
+    sg.Button('Saturation'),
+    ],
 
+
+
+    [sg.HSeparator()]
     ,
     [
     sg.Text('Blur:'),
@@ -123,12 +137,18 @@ def display_image(np_image,filename):
     [sg.HSeparator()],
     [sg.Button('Crop'),
     sg.Button('Cut'),
-    sg.Button('Resize')],
+    sg.Button('Resize'),
+    sg.Button('Flip'),
+    sg.Combo(['vertically','horizontally','custom vertically','custom horizontally'],default_value='vertically'  ,size=(15, 4),readonly=True, enable_events=True, key='-FLIP-'),
+    sg.Button('Rotate'),
+    sg.Combo(['90 deg','180 deg','270 deg'],default_value='90 deg'  ,size=(15, 4),readonly=True, enable_events=True, key='-ROT-'),
+
+    ],
     [sg.HSeparator()],
     [
     sg.Button('Addimage'),
     sg.Text('to the '),
-    sg.Combo(['up','down','left','right','custom'],default_value='custom' ,size=(20, 4),readonly=True, enable_events=True, key='-RESIZEOP-'),
+    sg.Combo(['top','bottom','left','right','custom'],default_value='custom' ,size=(20, 4),readonly=True, enable_events=True, key='-RESIZEOP-'),
     ],
 
     ]
@@ -172,7 +192,6 @@ def display_image(np_image,filename):
 
             x, y = values["-IMAGE-"]
             if values['-MOUSE-'] == 'selection':
-
                 if not dragging:
                     start_point = [x,y]
                     dragging = True
@@ -183,8 +202,6 @@ def display_image(np_image,filename):
                 if None not in (start_point, end_point):
                     prior_rect = graph.draw_rectangle(start_point, end_point, line_color='blue')
             elif values['-MOUSE-'] == 'brush':
-                #start_time = time.time()
-
                 start_data = [x,y]
                 end_data = [x+int(values["-MOUSESIZE-"]),y+int(values["-MOUSESIZE-"])]
                 if brush_choice[0] != "":
@@ -319,6 +336,49 @@ def display_image(np_image,filename):
             graph.draw_image(data=image_data, location=(0, height))
 
 
+        if event =="Rotate":
+            np_image = torotate(np_image,values['-ROT-'],start_data,end_data)
+
+            imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
+
+            image_data = np_im_to_data(np_image)
+            graph.erase()
+            height,w,c = np_image.shape
+            graph.draw_image(data=image_data, location=(0, height))
+
+
+        if event =="Flip":
+            np_image = toflip(np_image,values['-FLIP-'],start_data,end_data)
+
+            imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
+
+            image_data = np_im_to_data(np_image)
+
+            graph.draw_image(data=image_data, location=(0, height))
+
+        if event =='Brightness':
+
+            np_image =change_brightness(np_image,int(values['-BRIGHT-']),start_data,end_data)
+
+            imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
+
+            image_data = np_im_to_data(np_image)
+
+
+            graph.draw_image(data=image_data, location=(0, height))
+
+
+        if event =='Saturation':
+
+            np_image =change_saturation(np_image,int(values['-BRIGHT-']),start_data,end_data)
+
+            imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
+
+            image_data = np_im_to_data(np_image)
+
+
+            graph.draw_image(data=image_data, location=(0, height))
+
         if event == 'Averaging':
             if values['-MOUSE-'] == 'brush':
                 brush_choice = ['Averaging',[int(values['-SL-']),'a']]
@@ -415,6 +475,11 @@ def display_image(np_image,filename):
     window.close()
 
 
+
+
+
+
+
 def update_image_list(np_image,imagelist,currentimage):
     if len(imagelist)-1>currentimage:
         currentimage+=1
@@ -425,15 +490,7 @@ def update_image_list(np_image,imagelist,currentimage):
         currentimage+=1
     return imagelist,currentimage
 
-def opening_display(np_image,filename):
-
-    # Convert numpy array to data that sg.Graph can understand
-
-
-
-
-
-
+def opening_display():
 
 
     col_1 =[
@@ -504,18 +561,18 @@ def opening_display(np_image,filename):
     window.close()
 
 def main():
-    parser = argparse.ArgumentParser(description='A simple image viewer.')
-    parser.add_argument('file', action='store', help='Image file.')
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser(description='A simple image viewer.')
+    # parser.add_argument('file', action='store', help='Image file.')
+    # args = parser.parse_args()
+    #
+    # print(f'Loading {args.file} ... ', end='')
+    # image = cv2.imread(args.file)
+    # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    # print(f'{image.shape}')
 
-    print(f'Loading {args.file} ... ', end='')
-    image = cv2.imread(args.file)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    print(f'{image.shape}')
+    # display_image(image, args.file)
 
-    display_image(image, args.file)
-
-    #opening_display(image,args.file)
+    opening_display()
 
 if __name__ == '__main__':
     main()

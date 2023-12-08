@@ -43,7 +43,6 @@ def togray(image,start,end, color_key=None):
         B = (B *.114)
         Avg = (R+G+B)
 
-        print('avg:',Avg)
 
 
 
