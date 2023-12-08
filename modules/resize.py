@@ -11,7 +11,7 @@ def open_window_resize(np_image):
     [sg.Button('NN'),sg.Button('Bilinear'),sg.Button('Cancel')]
     ]
 
-    window = sg.Window("Save", layout, modal=True)
+    window = sg.Window("Resize", layout, modal=True)
 
     while True:
 
