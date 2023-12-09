@@ -21,7 +21,6 @@ def change_saturation(image,value,start,end):
 
     for y in range(startheight,endheight):
         for x in range(startwidth,endwidth):
-            # print()
             if sat[y][x][1]+value <0:
                 sat[y][x][1] = 0
             elif sat[y][x][1] >lim:

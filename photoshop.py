@@ -24,6 +24,7 @@ from modules.brightness import *
 from modules.saturation import *
 from modules.flip import *
 from modules.rotate import *
+from modules.sharpen import *
 import sys
 
 sys.setrecursionlimit(100000)
@@ -119,6 +120,14 @@ def display_image(np_image,filename):
 
     [sg.HSeparator()]
     ,
+    [sg.Text('Amount:'),
+    sg.Slider(range=(1,5),resolution=.1,default_value=1.0, enable_events=True,
+    orientation='horizontal', key='-SHARPA-'),
+    sg.Text('Threshhold:'),
+    sg.Slider(range=(0,5),resolution=.1,default_value=0.0, enable_events=True,
+    orientation='horizontal', key='-SHARPT-'),
+    sg.Button('Sharpen'),],
+    [sg.HSeparator()],
     [
     sg.Text('Blur:'),
     sg.Slider(range=(1,15),default_value=0, enable_events=True,
@@ -254,7 +263,7 @@ def display_image(np_image,filename):
                 info = window["info"]
                 start_data = start_point
                 end_data = end_point
-                info.update(value=f"grabbed rectangle from {start_data[0],start_data[1]} to {end_data[0],end_data[1]}")
+                info.update(value=f"{start_data[0],start_data[1]} to {end_data[0],end_data[1]}")
                 start_point = [None,None]
                 end_point = [None,None]  # enable grabbing a new rect
                 dragging = False
@@ -442,6 +451,13 @@ def display_image(np_image,filename):
             image_data = np_im_to_data(np_image)
             graph.erase()
             height,w,c = np_image.shape
+            graph.draw_image(data=image_data, location=(0, height))
+
+        if event == 'Sharpen':
+            np_image = unsharp_mask(np_image,float(values['-SHARPA-']),float(values['-SHARPT-']))
+            imagelist,currentimage=update_image_list(np_image,imagelist,currentimage)
+            image_data = np_im_to_data(np_image)
+
             graph.draw_image(data=image_data, location=(0, height))
 
 
