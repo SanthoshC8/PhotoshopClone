@@ -30,9 +30,6 @@ import sys
 sys.setrecursionlimit(100000)
 matplotlib.use('TkAgg')
 
-# add flood fill,labs,selection rectangle reference
-
-
 
 def np_im_to_data(im):
     array = np.array(im, dtype=np.uint8)
